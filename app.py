@@ -8,6 +8,10 @@ API_KEY = st.secrets["API_KEY"]
 
 st.title("Flexline.Text2SQL")
 
+# Add a toggle button for sql_only parameter
+show_results = st.toggle("Show Results", value=False)
+sql_only = not show_results
+
 user_input = st.text_input("Enter your question:", key="user_input")
 
 # Define token pricing constants
@@ -17,7 +21,7 @@ OUTPUT_TOKEN_PRICE = 0.015 / 1000  # $0.015 per 1000 output tokens
 if user_input:
     response = requests.get(
         f"{URL}/api/v1/query",
-        params={"query": user_input},
+        params={"query": user_input, "sql_only": sql_only},
         headers={
             "accept": "application/json",
             "X-API-KEY": API_KEY,
@@ -25,9 +29,11 @@ if user_input:
     )
 
     if response.status_code == 200:
+        response_data = response.json()
+
         # Extract SQL query and read-only flag
-        sql_query = response.json().get("sql_query")
-        read_only = response.json().get("read_only", False)
+        sql_query = response_data.get("sql_query")
+        read_only = response_data.get("read_only", False)
 
         formatted_sql = sqlparse.format(sql_query, reindent=True, keyword_case="upper")
 
@@ -78,6 +84,20 @@ if user_input:
             st.success("🔒 Read-Only Query")
         else:
             st.error("🔓 Read-Write Query")
+
+        # Display query results if sql_only is False (moved to the end)
+        if not sql_only and "result" in response_data and response_data["result"]:
+            st.subheader("Query Results")
+            results_df = pd.DataFrame(response_data["result"])
+
+            # Format numeric columns with thousand separators
+            for col in results_df.columns:
+                if pd.api.types.is_numeric_dtype(results_df[col]):
+                    results_df[col] = results_df[col].apply(lambda x: f"{x:,}")
+
+            st.dataframe(
+                results_df, hide_index=True
+            )  # hide_index=True removes the index column
     else:
         # Display error message from the API
         error_message = response.json().get("detail", "An unknown error occurred.")
