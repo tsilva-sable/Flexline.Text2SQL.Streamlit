@@ -19,7 +19,7 @@ INPUT_TOKEN_PRICE = 0.003 / 1000  # $0.003 per 1000 input tokens
 OUTPUT_TOKEN_PRICE = 0.015 / 1000  # $0.015 per 1000 output tokens
 
 if user_input:
-    response = requests.get(
+    response = requests.post(
         f"{URL}/api/v1/query",
         params={"query": user_input, "sql_only": sql_only},
         headers={
